@@ -1,6 +1,102 @@
 import React, { useState } from "react";
-import { BookOpen, Code, CheckCircle, XCircle } from "lucide-react";
+import {
+  BookOpen,
+  Code,
+  Trophy,
+  Award,
+  Play,
+  CheckCircle,
+  XCircle,
+  Target,
+  Zap,
+} from "lucide-react";
 
+// Composant ProgressBar (défini en dehors du composant principal)
+const ProgressBar = ({ userProgress, badges, levels }) => {
+  if (!userProgress || typeof userProgress.xp === "undefined") {
+    return null;
+  }
+
+  const currentLevel = levels.find((l) => l.id === userProgress.level);
+  const nextLevel = levels.find((l) => l.id === userProgress.level + 1);
+
+  let currentLevelXP = 0;
+  let xpForNextLevel = 100;
+  let percentage = 0;
+
+  if (currentLevel && nextLevel) {
+    currentLevelXP = userProgress.xp - currentLevel.xpRequired;
+    xpForNextLevel = nextLevel.xpRequired - currentLevel.xpRequired;
+    percentage = (currentLevelXP / xpForNextLevel) * 100;
+  } else if (!nextLevel) {
+    // Niveau max atteint
+    percentage = 100;
+    currentLevelXP = userProgress.xp;
+    xpForNextLevel = userProgress.xp;
+  }
+
+  return (
+    <div className="bg-gray-800 rounded-lg p-6 mb-6">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h3 className="text-2xl font-bold text-green-400 flex items-center gap-2">
+            <span>{currentLevel?.icon}</span>
+            Niveau {userProgress.level} - {currentLevel?.name}
+          </h3>
+          <p className="text-gray-400">
+            {nextLevel
+              ? `${currentLevelXP} / ${xpForNextLevel} XP vers niveau ${userProgress.level + 1}`
+              : `Niveau maximum atteint! (${userProgress.xp} XP total)`}
+          </p>
+        </div>
+        <div className="text-4xl">{currentLevel?.icon || "🌱"}</div>
+      </div>
+
+      <div className="w-full bg-gray-700 rounded-full h-4 mb-4">
+        <div
+          className="bg-gradient-to-r from-green-500 to-emerald-500 h-4 rounded-full transition-all duration-500"
+          style={{ width: `${percentage}%` }}
+        ></div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 text-center mb-4">
+        <div className="bg-gray-700 p-3 rounded-lg">
+          <p className="text-gray-400 text-sm">XP Total</p>
+          <p className="text-2xl font-bold text-green-400">{userProgress.xp}</p>
+        </div>
+        <div className="bg-gray-700 p-3 rounded-lg">
+          <p className="text-gray-400 text-sm">Badges</p>
+          <p className="text-2xl font-bold text-yellow-400">
+            {userProgress.badges.length}/{badges.length}
+          </p>
+        </div>
+      </div>
+
+      {userProgress.badges.length > 0 && (
+        <div className="mt-4">
+          <h4 className="text-sm font-semibold mb-2 text-gray-300">
+            Badges débloqués:
+          </h4>
+          <div className="flex flex-wrap gap-2">
+            {userProgress.badges.map((badgeId) => {
+              const badge = badges.find((b) => b.id === badgeId);
+              return badge ? (
+                <div
+                  key={badgeId}
+                  className="bg-yellow-500/20 border border-yellow-500 px-3 py-1 rounded-full text-sm"
+                >
+                  {badge.icon} {badge.name}
+                </div>
+              ) : null;
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Composant VennDiagram (défini en dehors du composant principal)
 const VennDiagram = ({ type }) => {
   const diagrams = {
     intersection: (
@@ -119,6 +215,71 @@ const SQLJoinsApp = () => {
   const [generalCurrentQuestion, setGeneralCurrentQuestion] = useState(0);
   const [generalScore, setGeneralScore] = useState(0);
   const [generalShowResult, setGeneralShowResult] = useState(false);
+
+  // Nouveaux états pour les fonctionnalités
+  const [showEditor, setShowEditor] = useState(false);
+  const [showExercises, setShowExercises] = useState(false);
+  const [showProgress, setShowProgress] = useState(false);
+  const [sqlCode, setSqlCode] = useState("SELECT * FROM clients;");
+  const [sqlResult, setSqlResult] = useState(null);
+  const [currentExercise, setCurrentExercise] = useState(0);
+  const [exerciseAnswer, setExerciseAnswer] = useState("");
+  const [exerciseResult, setExerciseResult] = useState(null);
+
+  // Système de progression
+  const [userProgress, setUserProgress] = useState({
+    level: 1,
+    xp: 0,
+    badges: [],
+    completedLessons: [],
+    completedQuizzes: [],
+    totalScore: 0,
+    unlockedLevels: [1], // Niveaux débloqués
+  });
+
+  // Définition des niveaux avec leurs requis
+  const levels = [
+    {
+      id: 1,
+      name: "Débutant",
+      icon: "🌱",
+      xpRequired: 0,
+      description: "Découvrez les bases de SQL",
+      unlocked: true,
+    },
+    {
+      id: 2,
+      name: "Apprenti",
+      icon: "📚",
+      xpRequired: 100,
+      description: "Maîtrisez les commandes de base",
+      unlocked: false,
+    },
+    {
+      id: 3,
+      name: "Intermédiaire",
+      icon: "⭐",
+      xpRequired: 300,
+      description: "Comprenez les jointures",
+      unlocked: false,
+    },
+    {
+      id: 4,
+      name: "Avancé",
+      icon: "💎",
+      xpRequired: 600,
+      description: "Maîtrisez les concepts avancés",
+      unlocked: false,
+    },
+    {
+      id: 5,
+      name: "Expert SQL",
+      icon: "🏆",
+      xpRequired: 1000,
+      description: "Vous êtes un maître SQL",
+      unlocked: false,
+    },
+  ];
 
   const joins = {
     INNER: {
@@ -357,7 +518,7 @@ COMMIT;`,
 
 DELETE FROM clients WHERE id = 5;
 
-ROLLBACK; -- Annule la suppression`,
+ROLLBACK;`,
         },
         {
           title: "Utiliser un point de sauvegarde",
@@ -394,7 +555,6 @@ BEGIN
   RETURN prix * 0.20;
 END;
 
--- Utilisation
 SELECT nom, prix, calculer_tva(prix) AS tva
 FROM produits;`,
         },
@@ -434,7 +594,6 @@ SELECT id, nom, email
 FROM clients
 WHERE statut = 'actif';
 
--- Utilisation
 SELECT * FROM clients_actifs;`,
         },
         {
@@ -471,7 +630,6 @@ GROUP BY c.id, c.date_commande, cl.nom;`,
           code: `CREATE INDEX idx_nom 
 ON clients(nom);
 
--- Améliore les requêtes comme :
 SELECT * FROM clients WHERE nom = 'Diop';`,
         },
         {
@@ -479,16 +637,13 @@ SELECT * FROM clients WHERE nom = 'Diop';`,
           code: `CREATE INDEX idx_nom_email 
 ON clients(nom, email);
 
--- Utile pour :
 SELECT * FROM clients 
 WHERE nom = 'Diop' AND email LIKE '%@email.com';`,
         },
         {
           title: "Index unique",
           code: `CREATE UNIQUE INDEX idx_email_unique 
-ON clients(email);
-
--- Empêche les doublons d'email`,
+ON clients(email);`,
         },
       ],
       keyPoints: [
@@ -516,7 +671,6 @@ BEGIN
   VALUES (p_nom, p_email);
 END;
 
--- Utilisation
 CALL ajouter_client('Diop', 'diop@email.com');`,
         },
         {
@@ -529,36 +683,8 @@ BEGIN
   FROM clients;
 END;
 
--- Utilisation
 CALL compter_clients(@nb);
 SELECT @nb;`,
-        },
-        {
-          title: "Procédure complexe",
-          code: `CREATE PROCEDURE traiter_commande(
-  IN p_client_id INT,
-  IN p_produit_id INT,
-  IN p_quantite INT
-)
-BEGIN
-  DECLARE v_prix DECIMAL(10,2);
-  
-  SELECT prix INTO v_prix
-  FROM produits
-  WHERE id = p_produit_id AND stock >= p_quantite;
-  
-  IF v_prix IS NOT NULL THEN
-    INSERT INTO commandes (client_id, total)
-    VALUES (p_client_id, v_prix * p_quantite);
-    
-    UPDATE produits
-    SET stock = stock - p_quantite
-    WHERE id = p_produit_id;
-  ELSE
-    SIGNAL SQLSTATE '45000'
-    SET MESSAGE_TEXT = 'Stock insuffisant';
-  END IF;
-END;`,
         },
       ],
       keyPoints: [
@@ -595,21 +721,6 @@ FOR EACH ROW
 BEGIN
   INSERT INTO audit_log (table_name, action, record_id)
   VALUES ('commandes', 'INSERT', NEW.id);
-END;`,
-        },
-        {
-          title: "Trigger AFTER UPDATE",
-          code: `CREATE TRIGGER maj_stock
-AFTER UPDATE ON produits
-FOR EACH ROW
-BEGIN
-  IF NEW.stock < 10 AND OLD.stock >= 10 THEN
-    INSERT INTO alertes (message, date_creation)
-    VALUES (
-      CONCAT('Stock faible pour produit ', NEW.nom),
-      NOW()
-    );
-  END IF;
 END;`,
         },
       ],
@@ -715,15 +826,128 @@ END;`,
     },
   ];
 
+  // Exercices pratiques
+  const exercises = [
+    {
+      id: 1,
+      title: "Créer une table simple",
+      category: "DDL",
+      difficulty: "Facile",
+      description:
+        'Créez une table "etudiants" avec les colonnes : id (INT, clé primaire), nom (VARCHAR 100), age (INT)',
+      hint: "Utilisez CREATE TABLE avec PRIMARY KEY",
+      solution: `CREATE TABLE etudiants (
+  id INT PRIMARY KEY,
+  nom VARCHAR(100),
+  age INT
+);`,
+      xp: 10,
+    },
+    {
+      id: 2,
+      title: "Insérer des données",
+      category: "DML",
+      difficulty: "Facile",
+      description:
+        'Insérez un étudiant nommé "Amadou" âgé de 22 ans dans la table etudiants',
+      hint: "Utilisez INSERT INTO ... VALUES",
+      solution: `INSERT INTO etudiants (nom, age) 
+VALUES ('Amadou', 22);`,
+      xp: 10,
+    },
+    {
+      id: 3,
+      title: "Sélectionner avec condition",
+      category: "DML",
+      difficulty: "Facile",
+      description: "Sélectionnez tous les étudiants âgés de plus de 20 ans",
+      hint: "Utilisez SELECT avec WHERE et >",
+      solution: `SELECT * FROM etudiants 
+WHERE age > 20;`,
+      xp: 15,
+    },
+    {
+      id: 4,
+      title: "INNER JOIN basique",
+      category: "Jointures",
+      difficulty: "Moyen",
+      description:
+        'Joignez les tables "commandes" et "clients" pour afficher toutes les commandes avec le nom du client',
+      hint: "Utilisez INNER JOIN ON",
+      solution: `SELECT commandes.*, clients.nom
+FROM commandes
+INNER JOIN clients ON commandes.client_id = clients.id;`,
+      xp: 20,
+    },
+    {
+      id: 5,
+      title: "LEFT JOIN pour trouver les orphelins",
+      category: "Jointures",
+      difficulty: "Moyen",
+      description:
+        "Trouvez tous les clients qui n'ont jamais passé de commande",
+      hint: "Utilisez LEFT JOIN avec WHERE ... IS NULL",
+      solution: `SELECT clients.*
+FROM clients
+LEFT JOIN commandes ON clients.id = commandes.client_id
+WHERE commandes.id IS NULL;`,
+      xp: 25,
+    },
+  ];
+
+  // Badges disponibles
+  const badges = [
+    {
+      id: "first_quiz",
+      name: "Premier Quiz",
+      icon: "🎯",
+      requirement: "Terminer un quiz",
+    },
+    {
+      id: "perfect_score",
+      name: "Score Parfait",
+      icon: "💯",
+      requirement: "Obtenir 100% à un quiz",
+    },
+    {
+      id: "five_exercises",
+      name: "Practicien",
+      icon: "💪",
+      requirement: "Compléter 5 exercices",
+    },
+    {
+      id: "level_5",
+      name: "Expert SQL",
+      icon: "🏆",
+      requirement: "Atteindre le niveau 5",
+    },
+    {
+      id: "all_concepts",
+      name: "Érudit",
+      icon: "📚",
+      requirement: "Explorer tous les concepts",
+    },
+  ];
+
   const handleQuizAnswer = (answer) => {
-    if (answer === quizQuestions[currentQuestion].answer) {
-      setScore(score + 1);
+    const isCorrect = answer === quizQuestions[currentQuestion].answer;
+    const newScore = isCorrect ? score + 1 : score;
+
+    if (isCorrect) {
+      setScore(newScore);
+      addXP(5);
     }
 
     if (currentQuestion < quizQuestions.length - 1) {
       setCurrentQuestion(currentQuestion + 1);
     } else {
       setShowResult(true);
+      if (newScore === quizQuestions.length) {
+        unlockBadge("perfect_score");
+      }
+      if (!userProgress.badges.includes("first_quiz")) {
+        unlockBadge("first_quiz");
+      }
     }
   };
 
@@ -732,6 +956,134 @@ END;`,
     setScore(0);
     setShowResult(false);
     setQuizMode(false);
+  };
+
+  // Fonctions pour le système de progression
+  const addXP = (points) => {
+    const newXP = userProgress.xp + points;
+    let newLevel = userProgress.level;
+    const newUnlockedLevels = [...userProgress.unlockedLevels];
+
+    // Calculer le nouveau niveau basé sur l'XP total
+    for (let i = levels.length - 1; i >= 0; i--) {
+      if (newXP >= levels[i].xpRequired) {
+        newLevel = levels[i].id;
+        if (!newUnlockedLevels.includes(levels[i].id)) {
+          newUnlockedLevels.push(levels[i].id);
+        }
+        break;
+      }
+    }
+
+    setUserProgress((prev) => ({
+      ...prev,
+      xp: newXP,
+      level: newLevel,
+      unlockedLevels: newUnlockedLevels,
+      totalScore: prev.totalScore + points,
+    }));
+
+    if (newLevel === 5 && !userProgress.badges.includes("level_5")) {
+      unlockBadge("level_5");
+    }
+  };
+
+  const unlockBadge = (badgeId) => {
+    if (!userProgress.badges.includes(badgeId)) {
+      setUserProgress((prev) => ({
+        ...prev,
+        badges: [...prev.badges, badgeId],
+      }));
+    }
+  };
+
+  // Fonction pour exécuter le code SQL (simulation)
+  const executeSQL = () => {
+    try {
+      // Simulation simple d'exécution SQL
+      if (sqlCode.trim().toUpperCase().startsWith("SELECT")) {
+        setSqlResult({
+          success: true,
+          message: "Requête exécutée avec succès!",
+          data: [
+            { id: 1, nom: "Diop", email: "diop@email.com" },
+            { id: 2, nom: "Sow", email: "sow@email.com" },
+            { id: 3, nom: "Fall", email: "fall@email.com" },
+          ],
+        });
+        addXP(5);
+      } else if (sqlCode.trim().toUpperCase().startsWith("CREATE")) {
+        setSqlResult({
+          success: true,
+          message: "Table créée avec succès!",
+          data: null,
+        });
+        addXP(10);
+      } else if (sqlCode.trim().toUpperCase().startsWith("INSERT")) {
+        setSqlResult({
+          success: true,
+          message: "1 ligne insérée",
+          data: null,
+        });
+        addXP(5);
+      } else {
+        setSqlResult({
+          success: true,
+          message: "Commande exécutée",
+          data: null,
+        });
+        addXP(3);
+      }
+    } catch (error) {
+      setSqlResult({
+        success: false,
+        message: "Erreur SQL: " + error.message,
+        data: null,
+      });
+    }
+  };
+
+  // Vérifier la réponse d'un exercice
+  const checkExercise = () => {
+    const ex = exercises[currentExercise];
+    const userAnswer = exerciseAnswer.trim().toUpperCase().replace(/\s+/g, " ");
+    const correctAnswer = ex.solution.trim().toUpperCase().replace(/\s+/g, " ");
+
+    const isCorrect = userAnswer.includes(correctAnswer.substring(0, 30));
+
+    setExerciseResult({
+      correct: isCorrect,
+      message: isCorrect
+        ? "🎉 Correct! Excellent travail!"
+        : "❌ Pas tout à fait. Essayez encore!",
+      solution: ex.solution,
+    });
+
+    if (isCorrect) {
+      addXP(ex.xp);
+      const completedCount = userProgress.completedLessons.length + 1;
+
+      setUserProgress((prev) => ({
+        ...prev,
+        completedLessons: [...prev.completedLessons, ex.id],
+      }));
+
+      if (
+        completedCount >= 5 &&
+        !userProgress.badges.includes("five_exercises")
+      ) {
+        unlockBadge("five_exercises");
+      }
+    }
+  };
+
+  // Passer à l'exercice suivant
+  const nextExercise = () => {
+    if (currentExercise < exercises.length - 1) {
+      setCurrentExercise(currentExercise + 1);
+      setExerciseAnswer("");
+      setExerciseResult(null);
+    }
   };
 
   if (quizMode && !showGeneralities) {
@@ -751,8 +1103,8 @@ END;`,
                 {score >= 4
                   ? "Excellent ! Vous maîtrisez les jointures SQL !"
                   : score >= 3
-                  ? "Bien joué ! Continuez à pratiquer."
-                  : "Pas mal ! Révisez le guide et réessayez."}
+                    ? "Bien joué ! Continuez à pratiquer."
+                    : "Pas mal ! Révisez le guide et réessayez."}
               </p>
               <button
                 onClick={resetQuiz}
@@ -814,26 +1166,35 @@ END;`,
           Maîtrisez SQL avec des exemples visuels
         </p>
 
-        <div className="mt-4 flex gap-3">
+        <div className="mt-4 flex gap-3 flex-wrap">
           <button
             onClick={() => {
               setShowGeneralities(false);
               setQuizMode(false);
               setGeneralQuizMode(false);
+              setShowEditor(false);
+              setShowExercises(false);
+              setShowProgress(false);
             }}
             className={`px-6 py-2 rounded-lg font-semibold transition-all ${
-              !showGeneralities
+              !showGeneralities &&
+              !showEditor &&
+              !showExercises &&
+              !showProgress
                 ? "bg-white text-green-700"
                 : "bg-green-500 text-white hover:bg-green-400"
             }`}
           >
-            🔗 Jointures SQL
+            🔗 Jointures
           </button>
           <button
             onClick={() => {
               setShowGeneralities(true);
               setQuizMode(false);
               setGeneralQuizMode(false);
+              setShowEditor(false);
+              setShowExercises(false);
+              setShowProgress(false);
             }}
             className={`px-6 py-2 rounded-lg font-semibold transition-all ${
               showGeneralities
@@ -841,13 +1202,377 @@ END;`,
                 : "bg-green-500 text-white hover:bg-green-400"
             }`}
           >
-            📚 Généralités SQL
+            📚 Généralités
+          </button>
+          <button
+            onClick={() => {
+              setShowEditor(true);
+              setShowGeneralities(false);
+              setShowExercises(false);
+              setShowProgress(false);
+            }}
+            className={`px-6 py-2 rounded-lg font-semibold transition-all ${
+              showEditor
+                ? "bg-white text-green-700"
+                : "bg-green-500 text-white hover:bg-green-400"
+            }`}
+          >
+            💻 Éditeur SQL
+          </button>
+          <button
+            onClick={() => {
+              setShowExercises(true);
+              setShowGeneralities(false);
+              setShowEditor(false);
+              setShowProgress(false);
+            }}
+            className={`px-6 py-2 rounded-lg font-semibold transition-all ${
+              showExercises
+                ? "bg-white text-green-700"
+                : "bg-green-500 text-white hover:bg-green-400"
+            }`}
+          >
+            ✍️ Exercices
+          </button>
+          <button
+            onClick={() => {
+              setShowProgress(true);
+              setShowGeneralities(false);
+              setShowEditor(false);
+              setShowExercises(false);
+            }}
+            className={`px-6 py-2 rounded-lg font-semibold transition-all ${
+              showProgress
+                ? "bg-white text-green-700"
+                : "bg-green-500 text-white hover:bg-green-400"
+            }`}
+          >
+            🏆 Progression
           </button>
         </div>
       </div>
 
       <div className="p-6 max-w-6xl mx-auto">
-        {showGeneralities ? (
+        {showProgress ? (
+          <div>
+            <h2 className="text-3xl font-bold mb-6 flex items-center gap-2">
+              <Trophy size={32} className="text-yellow-400" />
+              Votre Progression
+            </h2>
+
+            <ProgressBar
+              userProgress={userProgress}
+              badges={badges}
+              levels={levels}
+            />
+
+            <div className="bg-gray-800 rounded-lg p-6 mb-6">
+              <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                <Award size={24} className="text-yellow-400" />
+                Tous les Badges
+              </h3>
+              <div className="grid md:grid-cols-2 gap-4">
+                {badges.map((badge) => {
+                  const unlocked = userProgress.badges.includes(badge.id);
+                  return (
+                    <div
+                      key={badge.id}
+                      className={`p-4 rounded-lg border-2 ${
+                        unlocked
+                          ? "bg-yellow-500/20 border-yellow-500"
+                          : "bg-gray-700/50 border-gray-600 opacity-50"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-4xl">{badge.icon}</span>
+                        <div>
+                          <h4 className="font-bold">{badge.name}</h4>
+                          <p className="text-sm text-gray-400">
+                            {badge.requirement}
+                          </p>
+                          {unlocked && (
+                            <p className="text-xs text-green-400 mt-1">
+                              ✓ Débloqué
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="bg-gray-800 rounded-lg p-6">
+              <h3 className="text-xl font-bold mb-4">Leçons Complétées</h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {exercises.map((ex) => {
+                  const completed = userProgress.completedLessons.includes(
+                    ex.id,
+                  );
+                  return (
+                    <div
+                      key={ex.id}
+                      className={`p-3 rounded-lg text-center ${
+                        completed ? "bg-green-600" : "bg-gray-700"
+                      }`}
+                    >
+                      <div className="text-2xl mb-1">
+                        {completed ? "✅" : "⏳"}
+                      </div>
+                      <p className="text-sm font-semibold">{ex.title}</p>
+                      {completed && (
+                        <p className="text-xs text-green-200 mt-1">
+                          +{ex.xp} XP
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        ) : showEditor ? (
+          <div>
+            <h2 className="text-3xl font-bold mb-6 flex items-center gap-2">
+              <Code size={32} />
+              Éditeur SQL Interactif
+            </h2>
+
+            <div className="bg-gray-800 rounded-lg p-4 mb-4">
+              <p className="text-gray-300 mb-2">
+                💡 <strong>Astuce:</strong> Écrivez vos requêtes SQL ici et
+                exécutez-les pour voir le résultat!
+              </p>
+              <p className="text-sm text-gray-400">
+                Tables disponibles: clients, commandes, produits
+              </p>
+            </div>
+
+            <div className="bg-gray-800 rounded-lg p-6 mb-4">
+              <div className="mb-4">
+                <label className="block text-sm font-semibold mb-2">
+                  Votre requête SQL:
+                </label>
+                <textarea
+                  value={sqlCode}
+                  onChange={(e) => setSqlCode(e.target.value)}
+                  className="w-full bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-sm min-h-[200px] border border-gray-700 focus:border-green-500 focus:outline-none"
+                  placeholder="Écrivez votre requête SQL ici..."
+                />
+              </div>
+
+              <button
+                onClick={executeSQL}
+                className="bg-green-600 hover:bg-green-700 px-6 py-3 rounded-lg font-semibold flex items-center gap-2"
+              >
+                <Play size={20} />
+                Exécuter
+              </button>
+            </div>
+
+            {sqlResult && (
+              <div
+                className={`rounded-lg p-6 ${
+                  sqlResult.success
+                    ? "bg-green-900/30 border-2 border-green-500"
+                    : "bg-red-900/30 border-2 border-red-500"
+                }`}
+              >
+                <h3 className="font-bold mb-3 flex items-center gap-2">
+                  {sqlResult.success ? (
+                    <CheckCircle className="text-green-400" />
+                  ) : (
+                    <XCircle className="text-red-400" />
+                  )}
+                  {sqlResult.message}
+                </h3>
+
+                {sqlResult.data && (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead className="bg-gray-800">
+                        <tr>
+                          {Object.keys(sqlResult.data[0]).map((key) => (
+                            <th
+                              key={key}
+                              className="px-4 py-2 border border-gray-700"
+                            >
+                              {key}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sqlResult.data.map((row, idx) => (
+                          <tr key={idx} className="bg-gray-700/50">
+                            {Object.values(row).map((val, i) => (
+                              <td
+                                key={i}
+                                className="px-4 py-2 border border-gray-700"
+                              >
+                                {val}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="mt-6 bg-gray-800 rounded-lg p-6">
+              <h3 className="text-xl font-bold mb-4">Exemples à essayer:</h3>
+              <div className="grid md:grid-cols-2 gap-4">
+                <button
+                  onClick={() =>
+                    setSqlCode("SELECT * FROM clients WHERE pays = 'Sénégal';")
+                  }
+                  className="bg-gray-700 hover:bg-gray-600 p-4 rounded-lg text-left"
+                >
+                  <p className="font-semibold mb-1">Clients sénégalais</p>
+                  <code className="text-xs text-green-400">
+                    SELECT * FROM clients...
+                  </code>
+                </button>
+                <button
+                  onClick={() =>
+                    setSqlCode(
+                      "SELECT clients.nom, COUNT(commandes.id) as total\nFROM clients\nLEFT JOIN commandes ON clients.id = commandes.client_id\nGROUP BY clients.nom;",
+                    )
+                  }
+                  className="bg-gray-700 hover:bg-gray-600 p-4 rounded-lg text-left"
+                >
+                  <p className="font-semibold mb-1">Compter les commandes</p>
+                  <code className="text-xs text-green-400">
+                    SELECT ... COUNT...
+                  </code>
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : showExercises ? (
+          <div>
+            <h2 className="text-3xl font-bold mb-6 flex items-center gap-2">
+              <Target size={32} className="text-blue-400" />
+              Exercices Pratiques
+            </h2>
+
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-gray-400">
+                  Exercice {currentExercise + 1} / {exercises.length}
+                </span>
+                <span
+                  className={`px-3 py-1 rounded-full text-sm ${
+                    exercises[currentExercise].difficulty === "Facile"
+                      ? "bg-green-600"
+                      : "bg-yellow-600"
+                  }`}
+                >
+                  {exercises[currentExercise].difficulty}
+                </span>
+              </div>
+
+              <div className="w-full bg-gray-700 rounded-full h-2">
+                <div
+                  className="bg-blue-500 h-2 rounded-full transition-all"
+                  style={{
+                    width: `${((currentExercise + 1) / exercises.length) * 100}%`,
+                  }}
+                ></div>
+              </div>
+            </div>
+
+            <div className="bg-gray-800 rounded-lg p-6 mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="bg-blue-600 px-3 py-1 rounded text-sm">
+                  {exercises[currentExercise].category}
+                </span>
+                <span className="text-yellow-400 flex items-center gap-1">
+                  <Zap size={16} />+{exercises[currentExercise].xp} XP
+                </span>
+              </div>
+
+              <h3 className="text-2xl font-bold mb-4">
+                {exercises[currentExercise].title}
+              </h3>
+
+              <p className="text-gray-300 mb-4">
+                {exercises[currentExercise].description}
+              </p>
+
+              <div className="bg-blue-900/20 border border-blue-500 rounded-lg p-4 mb-4">
+                <p className="text-sm text-blue-300">
+                  💡 <strong>Indice:</strong> {exercises[currentExercise].hint}
+                </p>
+              </div>
+
+              <label className="block text-sm font-semibold mb-2">
+                Votre réponse:
+              </label>
+              <textarea
+                value={exerciseAnswer}
+                onChange={(e) => setExerciseAnswer(e.target.value)}
+                className="w-full bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-sm min-h-[150px] border border-gray-700 focus:border-blue-500 focus:outline-none mb-4"
+                placeholder="Écrivez votre requête SQL ici..."
+              />
+
+              <div className="flex gap-3">
+                <button
+                  onClick={checkExercise}
+                  className="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-semibold flex items-center gap-2"
+                >
+                  <CheckCircle size={20} />
+                  Vérifier
+                </button>
+
+                {exerciseResult?.correct &&
+                  currentExercise < exercises.length - 1 && (
+                    <button
+                      onClick={nextExercise}
+                      className="bg-green-600 hover:bg-green-700 px-6 py-3 rounded-lg font-semibold"
+                    >
+                      Exercice suivant →
+                    </button>
+                  )}
+              </div>
+            </div>
+
+            {exerciseResult && (
+              <div
+                className={`rounded-lg p-6 ${
+                  exerciseResult.correct
+                    ? "bg-green-900/30 border-2 border-green-500"
+                    : "bg-orange-900/30 border-2 border-orange-500"
+                }`}
+              >
+                <p className="font-bold text-lg mb-3">
+                  {exerciseResult.message}
+                </p>
+
+                {!exerciseResult.correct && (
+                  <div>
+                    <p className="text-sm text-gray-300 mb-2">Solution:</p>
+                    <pre className="bg-gray-900 p-4 rounded-lg overflow-x-auto">
+                      <code className="text-green-400 text-sm">
+                        {exerciseResult.solution}
+                      </code>
+                    </pre>
+                  </div>
+                )}
+
+                {exerciseResult.correct && (
+                  <p className="text-green-300">
+                    Vous avez gagné {exercises[currentExercise].xp} XP! 🎉
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        ) : showGeneralities ? (
           generalQuizMode ? (
             generalShowResult ? (
               <div className="bg-gray-800 rounded-lg p-8 text-center">
@@ -858,10 +1583,10 @@ END;`,
                   {generalScore >= 8
                     ? "🏆"
                     : generalScore >= 6
-                    ? "🎉"
-                    : generalScore >= 4
-                    ? "👍"
-                    : "💪"}
+                      ? "🎉"
+                      : generalScore >= 4
+                        ? "👍"
+                        : "💪"}
                 </div>
                 <p className="text-2xl mb-6">
                   Score: {generalScore} / {generalQuizQuestions.length}
@@ -870,10 +1595,10 @@ END;`,
                   {generalScore >= 8
                     ? "Excellent ! Vous maîtrisez parfaitement SQL !"
                     : generalScore >= 6
-                    ? "Très bien ! Vous avez de bonnes bases."
-                    : generalScore >= 4
-                    ? "Pas mal ! Continuez à apprendre."
-                    : "Révisez les concepts et réessayez !"}
+                      ? "Très bien ! Vous avez de bonnes bases."
+                      : generalScore >= 4
+                        ? "Pas mal ! Continuez à apprendre."
+                        : "Révisez les concepts et réessayez !"}
                 </p>
                 <button
                   onClick={() => {
@@ -918,6 +1643,7 @@ END;`,
                                 .answer
                             ) {
                               setGeneralScore(generalScore + 1);
+                              addXP(10);
                             }
 
                             if (
@@ -925,7 +1651,7 @@ END;`,
                               generalQuizQuestions.length - 1
                             ) {
                               setGeneralCurrentQuestion(
-                                generalCurrentQuestion + 1
+                                generalCurrentQuestion + 1,
                               );
                             } else {
                               setGeneralShowResult(true);
@@ -935,7 +1661,7 @@ END;`,
                         >
                           {option}
                         </button>
-                      )
+                      ),
                     )}
                   </div>
                 </div>
@@ -982,7 +1708,7 @@ END;`,
                         >
                           {cmd}
                         </span>
-                      )
+                      ),
                     )}
                   </div>
                 </div>
@@ -1002,7 +1728,7 @@ END;`,
                         </code>
                       </pre>
                     </div>
-                  )
+                  ),
                 )}
               </div>
 
@@ -1017,7 +1743,7 @@ END;`,
                         <span className="text-green-500 mt-1">✓</span>
                         <span>{point}</span>
                       </li>
-                    )
+                    ),
                   )}
                 </ul>
               </div>
