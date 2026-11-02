@@ -1,10 +1,40 @@
 <!doctype html>
-<html lang="en">
+<html lang="fr">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>sqlapp</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>SENSqL — Apprendre SQL par la pratique</title>
+    <meta
+      name="description"
+      content="SENSqL : maîtrisez les jointures SQL, le DDL/DML, les vues, index et triggers avec un éditeur SQL réel, des exercices corrigés et des quiz. Fonctionne hors ligne."
+    />
+    <meta name="theme-color" content="#0a0e1a" />
+    <script>
+      // Applique le thème avant l'affichage pour éviter un flash blanc.
+      try {
+        var t = localStorage.getItem('sensql:theme')
+        var sombre = t === 'sombre' || (t !== 'clair' && matchMedia('(prefers-color-scheme: dark)').matches)
+        if (sombre) document.documentElement.classList.add('dark')
+        document.querySelector('meta[name="theme-color"]').setAttribute('content', sombre ? '#0a0e1a' : '#f6f7fb')
+      } catch (e) {}
+    </script>
+    <meta name="author" content="Alioune Badara Diop" />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="SENSqL" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+
+    <meta property="og:title" content="SENSqL — Apprendre SQL par la pratique" />
+    <meta
+      property="og:description"
+      content="Jointures, DDL/DML, éditeur SQL réel, exercices corrigés et quiz. Installable, fonctionne hors ligne."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="fr_FR" />
   </head>
   <body>
     <div id="root"></div>
